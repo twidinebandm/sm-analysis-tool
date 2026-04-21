@@ -11,7 +11,7 @@ st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
 # --- UNICODE SAFE PDF CLASS ---
 class SafePDF(FPDF):
     def safe_text(self, text):
-        # Desteklenmeyen karakterleri (™ gibi) güvenli bir şekilde temizler
+        # Desteklenmeyen karakterleri temizler veya soru işaretine çevirir
         return str(text).encode('latin-1', 'replace').decode('latin-1')
 
 def create_pdf(df, total_imp, total_eng):
@@ -43,13 +43,13 @@ def create_pdf(df, total_imp, total_eng):
     top_10_pdf = df.groupby('Owner')['Calculated_Impression'].sum().nlargest(10).reset_index()
     
     for _, row in top_10_pdf.iterrows():
-        # safe_text kullanarak özel karakterlerin hata vermesini önlüyoruz
         owner_name = pdf.safe_text(row['Owner'])
         pdf.cell(90, 10, owner_name[:45], 1) 
         pdf.cell(50, 10, f"{row['Calculated_Impression']:,.0f}", 1)
         pdf.ln()
         
-    return pdf.output(dest="S")
+    # HATA DÜZELTMESİ: bytearray nesnesini bytes tipine dönüştürüyoruz
+    return bytes(pdf.output())
 
 # --- DATA PROCESSING ---
 def process_data(df):
@@ -62,7 +62,6 @@ def process_data(df):
     else:
         df['Calculated_Impression'] = 0
         
-    # 'Name' sütunu varsa kullan, yoksa 'Medium' kullan
     if 'Name' in df.columns:
         df['Owner'] = df['Name'].fillna(df['Medium'])
     else:
@@ -73,27 +72,31 @@ def process_data(df):
 st.title("📊 Social Media Performance Dashboard")
 
 try:
+    # GitHub'dan veriyi çek
     df_raw = pd.read_csv(GITHUB_CSV_URL)
     df = process_data(df_raw)
     
     total_imp = df['Calculated_Impression'].sum()
     total_eng = df['Engagement'].sum()
 
-    # Sidebar - Export
+    # Sidebar Export Section
     st.sidebar.header("Report Export")
-    if st.sidebar.button("Generate PDF Report"):
-        try:
-            pdf_data = create_pdf(df, total_imp, total_eng)
-            st.sidebar.download_button(
-                label="⬇️ Download PDF",
-                data=pdf_data,
-                file_name="SM_Performance_Report.pdf",
-                mime="application/pdf"
-            )
-        except Exception as pdf_err:
-            st.sidebar.error(f"PDF Error: {pdf_err}")
+    
+    # PDF oluşturma işlemini değişkene atayarak kontrol ediyoruz
+    try:
+        # PDF verisini oluştur
+        pdf_output = create_pdf(df, total_imp, total_eng)
+        
+        st.sidebar.download_button(
+            label="⬇️ Download PDF Report",
+            data=pdf_output,
+            file_name="SM_Performance_Report.pdf",
+            mime="application/pdf"
+        )
+    except Exception as pdf_err:
+        st.sidebar.error(f"PDF Generation Error: {pdf_err}")
 
-    # Display Metrics and Charts
+    # Dashboard Metrics
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Impressions", f"{total_imp:,.0f}")
     m2.metric("Total Engagement", f"{total_eng:,.0f}")
@@ -101,6 +104,7 @@ try:
 
     st.divider()
 
+    # Charts
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Impression Share by Platform")
@@ -113,4 +117,4 @@ try:
         st.plotly_chart(fig2, use_container_width=True)
 
 except Exception as e:
-    st.error(f"Error fetching data: {e}")
+    st.error(f"Error: {e}")
