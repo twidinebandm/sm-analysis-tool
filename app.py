@@ -11,7 +11,7 @@ GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-too
 GITHUB_LOGO_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/CONCEPT_LOGO%20(1)_beyaz.png"
 
 # Page Configuration
-st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
+st.set_page_config(page_title="Concept Istanbul Social Media Analytics Tool", layout="wide")
 
 # --- UNICODE SAFE PDF CLASS WITH LOGO AND DASHBOARD METRICS ---
 class SafePDF(FPDF):
