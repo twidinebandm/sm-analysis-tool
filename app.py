@@ -98,7 +98,7 @@ with col_title:
     except:
         pass # Skip logo if error fetching from URL
 
-    st.title("Concept Istanbul Social Media Analytics Tool")
+    st.title("Social Media Analytics Tool")
 
 try:
     # Veriyi GitHub'dan Çek
