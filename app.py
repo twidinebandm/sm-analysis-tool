@@ -1,102 +1,49 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from fpdf import FPDF
 
-# GitHub CSV URL
+# 1. GITHUB RAW URL CONFIGURATION
+# GitHub'daki dosyanıza gidin, "Raw" butonuna basın ve tarayıcıdaki URL'yi buraya yapıştırın.
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
 
+# Page Configuration
 st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
 
-# --- UNICODE SAFE PDF CLASS ---
-class SafePDF(FPDF):
-    def safe_text(self, text):
-        # Desteklenmeyen karakterleri temizler veya soru işaretine çevirir
-        return str(text).encode('latin-1', 'replace').decode('latin-1')
-
-def create_pdf(df, total_imp, total_eng):
-    pdf = SafePDF()
-    pdf.add_page()
-    
-    # Title
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, pdf.safe_text("Social Media Performance Report"), ln=True, align="C")
-    pdf.ln(10)
-    
-    # Summary Metrics
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 10, "1. Executive Summary", ln=True)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 10, f"Total Impressions: {total_imp:,.0f}", ln=True)
-    pdf.cell(0, 10, f"Total Engagement: {total_eng:,.0f}", ln=True)
-    pdf.cell(0, 10, f"Total Contents: {len(df)}", ln=True)
-    pdf.ln(10)
-    
-    # Table Header
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(90, 10, "Owner Name", 1)
-    pdf.cell(50, 10, "Impressions", 1)
-    pdf.ln()
-    
-    # Data Rows
-    pdf.set_font("Helvetica", "", 10)
-    top_10_pdf = df.groupby('Owner')['Calculated_Impression'].sum().nlargest(10).reset_index()
-    
-    for _, row in top_10_pdf.iterrows():
-        owner_name = pdf.safe_text(row['Owner'])
-        pdf.cell(90, 10, owner_name[:45], 1) 
-        pdf.cell(50, 10, f"{row['Calculated_Impression']:,.0f}", 1)
-        pdf.ln()
-        
-    # HATA DÜZELTMESİ: bytearray nesnesini bytes tipine dönüştürüyoruz
-    return bytes(pdf.output())
-
-# --- DATA PROCESSING ---
 def process_data(df):
+    # Clean column names
     df.columns = [c.strip() for c in df.columns]
+    
+    # Ensure numeric columns
     df['Follower'] = pd.to_numeric(df['Follower'], errors='coerce').fillna(0)
     df['Engagement'] = pd.to_numeric(df['Engagement'], errors='coerce').fillna(0)
     
+    # Primary source: Average Impression from your sheet
     if 'Average Impression' in df.columns:
         df['Calculated_Impression'] = pd.to_numeric(df['Average Impression'], errors='coerce').fillna(0)
     else:
         df['Calculated_Impression'] = 0
         
+    # Owner Name from 'Name' column
     if 'Name' in df.columns:
-        df['Owner'] = df['Name'].fillna(df['Medium'])
+        df['Owner'] = df['Name'].fillna('Unknown')
     else:
-        df['Owner'] = df['Medium']
+        df['Owner'] = df['Medium'].astype(str)
+
     return df
 
-# --- MAIN APP ---
+# UI Header
 st.title("📊 Social Media Performance Dashboard")
+st.info(f"Data is being fetched automatically from GitHub.")
 
 try:
-    # GitHub'dan veriyi çek
+    # AUTOMATIC FETCHING
     df_raw = pd.read_csv(GITHUB_CSV_URL)
     df = process_data(df_raw)
     
+    # --- TOP METRICS ---
     total_imp = df['Calculated_Impression'].sum()
     total_eng = df['Engagement'].sum()
-
-    # Sidebar Export Section
-    st.sidebar.header("Report Export")
     
-    # PDF oluşturma işlemini değişkene atayarak kontrol ediyoruz
-    try:
-        # PDF verisini oluştur
-        pdf_output = create_pdf(df, total_imp, total_eng)
-        
-        st.sidebar.download_button(
-            label="⬇️ Download PDF Report",
-            data=pdf_output,
-            file_name="SM_Performance_Report.pdf",
-            mime="application/pdf"
-        )
-    except Exception as pdf_err:
-        st.sidebar.error(f"PDF Generation Error: {pdf_err}")
-
-    # Dashboard Metrics
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Impressions", f"{total_imp:,.0f}")
     m2.metric("Total Engagement", f"{total_eng:,.0f}")
@@ -104,17 +51,37 @@ try:
 
     st.divider()
 
-    # Charts
-    c1, c2 = st.columns(2)
-    with c1:
+    # --- CHARTS ---
+    col_row1_1, col_row1_2 = st.columns(2)
+    with col_row1_1:
         st.subheader("Impression Share by Platform")
-        fig1 = px.pie(df, values='Calculated_Impression', names='Medium', hole=0.4)
+        platform_imp = df.groupby('Medium')['Calculated_Impression'].sum().reset_index()
+        fig1 = px.pie(platform_imp, values='Calculated_Impression', names='Medium', hole=0.4)
         st.plotly_chart(fig1, use_container_width=True)
-    with c2:
-        st.subheader("Top 10 Owners by Engagement")
+
+    with col_row1_2:
+        st.subheader("Top 10 Content Owners by Engagement")
         owner_eng = df.groupby('Owner')['Engagement'].sum().nlargest(10).reset_index()
-        fig2 = px.bar(owner_eng, x='Engagement', y='Owner', orientation='h')
+        fig2 = px.bar(owner_eng, x='Engagement', y='Owner', orientation='h', color='Owner')
         st.plotly_chart(fig2, use_container_width=True)
 
+    col_row2_1, col_row2_2 = st.columns(2)
+    with col_row2_1:
+        st.subheader("Top 10 Content Owners by Impressions")
+        owner_imp = df.groupby('Owner')['Calculated_Impression'].sum().nlargest(10).reset_index()
+        fig3 = px.bar(owner_imp, x='Calculated_Impression', y='Owner', orientation='h', color='Owner')
+        st.plotly_chart(fig3, use_container_width=True)
+
+    with col_row2_2:
+        st.subheader("Top 10 Accounts by Follower Count")
+        owner_fol = df.groupby('Owner')['Follower'].max().nlargest(10).reset_index()
+        fig4 = px.bar(owner_fol, x='Follower', y='Owner', orientation='h', color='Follower')
+        st.plotly_chart(fig4, use_container_width=True)
+
+    # --- DATA TABLE ---
+    with st.expander("View Raw Data Table"):
+        st.dataframe(df[['Owner', 'Medium', 'Follower', 'Engagement', 'Calculated_Impression', 'Link']], use_container_width=True)
+
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error fetching data from GitHub: {e}")
+    st.warning("Please check if the GITHUB_CSV_URL is correct and the file is public.")
