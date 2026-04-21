@@ -86,7 +86,7 @@ with col_logo:
 
 with col_title:
     # Başlığı logonun yanına, dikeyde ortalanmış hissi verecek şekilde biraz boşlukla ekliyoruz
-    st.markdown("<h1 style='margin-top: -10px;'>Concept Istanbul Social Media Analytics Tool</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin-top: -10px;'>Social Media Analytics Tool</h1>", unsafe_allow_html=True)
 
 try:
     df_raw = pd.read_csv(GITHUB_CSV_URL)
