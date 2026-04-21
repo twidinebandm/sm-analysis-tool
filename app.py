@@ -5,7 +5,7 @@ from fpdf import FPDF
 import base64
 
 # 1. CONFIGURATION
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/KULLANICI_ADINIZ/REPO_ADINIZ/main/Yaya_Gecidi_SM_Icerikleri.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
 
 st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
 
