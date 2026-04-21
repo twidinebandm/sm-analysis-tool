@@ -2,48 +2,54 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from fpdf import FPDF
-import base64
 
-# 1. CONFIGURATION
+# GitHub CSV URL
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
 
 st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
 
-# --- PDF GENERATION FUNCTION ---
+# --- UNICODE SAFE PDF CLASS ---
+class SafePDF(FPDF):
+    def safe_text(self, text):
+        # Desteklenmeyen karakterleri (™ gibi) güvenli bir şekilde temizler
+        return str(text).encode('latin-1', 'replace').decode('latin-1')
+
 def create_pdf(df, total_imp, total_eng):
-    pdf = FPDF()
+    pdf = SafePDF()
     pdf.add_page()
     
     # Title
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Social Media Performance Report", ln=True, align="C")
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, pdf.safe_text("Social Media Performance Report"), ln=True, align="C")
     pdf.ln(10)
     
     # Summary Metrics
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 10, "1. Executive Summary", ln=True)
-    pdf.set_font("Arial", "", 11)
+    pdf.set_font("Helvetica", "", 11)
     pdf.cell(0, 10, f"Total Impressions: {total_imp:,.0f}", ln=True)
     pdf.cell(0, 10, f"Total Engagement: {total_eng:,.0f}", ln=True)
-    pdf.cell(0, 10, f"Total Contents Analyzed: {len(df)}", ln=True)
+    pdf.cell(0, 10, f"Total Contents: {len(df)}", ln=True)
     pdf.ln(10)
     
-    # Top 10 by Impressions Table
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "2. Top 10 Content Owners (by Impressions)", ln=True)
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(80, 10, "Owner Name", 1)
+    # Table Header
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(90, 10, "Owner Name", 1)
     pdf.cell(50, 10, "Impressions", 1)
     pdf.ln()
     
+    # Data Rows
+    pdf.set_font("Helvetica", "", 10)
     top_10_pdf = df.groupby('Owner')['Calculated_Impression'].sum().nlargest(10).reset_index()
-    pdf.set_font("Arial", "", 10)
-    for index, row in top_10_pdf.iterrows():
-        pdf.cell(80, 10, str(row['Owner'])[:40], 1)
+    
+    for _, row in top_10_pdf.iterrows():
+        # safe_text kullanarak özel karakterlerin hata vermesini önlüyoruz
+        owner_name = pdf.safe_text(row['Owner'])
+        pdf.cell(90, 10, owner_name[:45], 1) 
         pdf.cell(50, 10, f"{row['Calculated_Impression']:,.0f}", 1)
         pdf.ln()
         
-    return pdf.output(dest="S").encode("latin-1", "replace")
+    return pdf.output(dest="S")
 
 # --- DATA PROCESSING ---
 def process_data(df):
@@ -56,7 +62,11 @@ def process_data(df):
     else:
         df['Calculated_Impression'] = 0
         
-    df['Owner'] = df['Name'].fillna(df['Medium']) if 'Name' in df.columns else df['Medium']
+    # 'Name' sütunu varsa kullan, yoksa 'Medium' kullan
+    if 'Name' in df.columns:
+        df['Owner'] = df['Name'].fillna(df['Medium'])
+    else:
+        df['Owner'] = df['Medium']
     return df
 
 # --- MAIN APP ---
@@ -69,18 +79,21 @@ try:
     total_imp = df['Calculated_Impression'].sum()
     total_eng = df['Engagement'].sum()
 
-    # SIDEBAR - EXPORT
-    st.sidebar.header("Report Settings")
+    # Sidebar - Export
+    st.sidebar.header("Report Export")
     if st.sidebar.button("Generate PDF Report"):
-        pdf_bytes = create_pdf(df, total_imp, total_eng)
-        st.sidebar.download_button(
-            label="⬇️ Download PDF",
-            data=pdf_bytes,
-            file_name="Social_Media_Report.pdf",
-            mime="application/pdf"
-        )
+        try:
+            pdf_data = create_pdf(df, total_imp, total_eng)
+            st.sidebar.download_button(
+                label="⬇️ Download PDF",
+                data=pdf_data,
+                file_name="SM_Performance_Report.pdf",
+                mime="application/pdf"
+            )
+        except Exception as pdf_err:
+            st.sidebar.error(f"PDF Error: {pdf_err}")
 
-    # METRICS
+    # Display Metrics and Charts
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Impressions", f"{total_imp:,.0f}")
     m2.metric("Total Engagement", f"{total_eng:,.0f}")
@@ -88,21 +101,16 @@ try:
 
     st.divider()
 
-    # CHARTS (Aynı kalıyor)
-    col1, col2 = st.columns(2)
-    with col1:
+    c1, c2 = st.columns(2)
+    with c1:
         st.subheader("Impression Share by Platform")
         fig1 = px.pie(df, values='Calculated_Impression', names='Medium', hole=0.4)
         st.plotly_chart(fig1, use_container_width=True)
-    with col2:
-        st.subheader("Top 10 Content Owners by Engagement")
+    with c2:
+        st.subheader("Top 10 Owners by Engagement")
         owner_eng = df.groupby('Owner')['Engagement'].sum().nlargest(10).reset_index()
         fig2 = px.bar(owner_eng, x='Engagement', y='Owner', orientation='h')
         st.plotly_chart(fig2, use_container_width=True)
 
-    # DATA TABLE
-    st.subheader("📋 Detailed Data View")
-    st.dataframe(df[['Owner', 'Medium', 'Follower', 'Engagement', 'Calculated_Impression']], use_container_width=True)
-
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error fetching data: {e}")
