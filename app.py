@@ -5,7 +5,7 @@ from fpdf import FPDF
 import io
 
 # 1. CONFIGURATION - Güncel GitHub Raw URL
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/yaya.csv"
 
 st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
 
