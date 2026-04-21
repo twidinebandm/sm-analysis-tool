@@ -4,7 +4,7 @@ import plotly.express as px
 
 # 1. GITHUB RAW URL CONFIGURATION
 # GitHub'daki dosyanıza gidin, "Raw" butonuna basın ve tarayıcıdaki URL'yi buraya yapıştırın.
-GITHUB_CSV_URL = "https://github.com/twidinebandm/sm-analysis-tool/blob/550c9f3689c36c6e469e5e85288e956d0f73aeae/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/twidinebandm/sm-analysis-tool/refs/heads/main/Yaya%20Gec%CC%A7idi%20SM%20I%CC%87c%CC%A7erikleri%20-%20Sheet1.csv"
 
 # Page Configuration
 st.set_page_config(page_title="Social Media Analytics Tool", layout="wide")
